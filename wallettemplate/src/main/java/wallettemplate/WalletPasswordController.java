@@ -1,6 +1,23 @@
+/*
+ * Copyright by the original author or authors.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package wallettemplate;
 
-import com.google.bitcoin.crypto.KeyCrypterScrypt;
+import javafx.application.Platform;
+import org.bitcoinj.crypto.KeyCrypterScrypt;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -43,6 +60,7 @@ public class WalletPasswordController {
 
     public void initialize() {
         progressMeter.setOpacity(0);
+        Platform.runLater(pass1::requestFocus);
     }
 
     @FXML void confirmClicked(ActionEvent event) {
@@ -56,8 +74,7 @@ public class WalletPasswordController {
         checkNotNull(keyCrypter);   // We should never arrive at this GUI if the wallet isn't actually encrypted.
         KeyDerivationTasks tasks = new KeyDerivationTasks(keyCrypter, password, getTargetTime()) {
             @Override
-            protected void onFinish(KeyParameter aesKey) {
-                super.onFinish(aesKey);
+            protected final void onFinish(KeyParameter aesKey, int timeTakenMsec) {
                 checkGuiThread();
                 if (Main.bitcoin.wallet().checkAESKey(aesKey)) {
                     WalletPasswordController.this.aesKey.set(aesKey);

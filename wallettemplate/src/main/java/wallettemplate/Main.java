@@ -1,13 +1,29 @@
+/*
+ * Copyright by the original author or authors.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package wallettemplate;
 
-import com.google.bitcoin.core.NetworkParameters;
-import com.google.bitcoin.kits.WalletAppKit;
-import com.google.bitcoin.params.MainNetParams;
-import com.google.bitcoin.params.RegTestParams;
-import com.google.bitcoin.params.TestNet3Params;
-import com.google.bitcoin.utils.BriefLogFormatter;
-import com.google.bitcoin.utils.Threading;
-import com.google.bitcoin.wallet.DeterministicSeed;
+import com.google.common.util.concurrent.*;
+import javafx.scene.input.*;
+import org.bitcoinj.core.NetworkParameters;
+import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.params.*;
+import org.bitcoinj.utils.BriefLogFormatter;
+import org.bitcoinj.utils.Threading;
+import org.bitcoinj.wallet.DeterministicSeed;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -28,9 +44,11 @@ import java.net.URL;
 import static wallettemplate.utils.GuiUtils.*;
 
 public class Main extends Application {
-    public static String APP_NAME = "WalletTemplate";
+    public static NetworkParameters params = MainNetParams.get();
+    public static final String APP_NAME = "WalletTemplate";
+    private static final String WALLET_FILE_NAME = APP_NAME.replaceAll("[^a-zA-Z0-9.-]", "_") + "-"
+            + params.getPaymentProtocolId();
 
-    public static NetworkParameters params = TestNet3Params.get();
     public static WalletAppKit bitcoin;
     public static Main instance;
 
@@ -38,6 +56,7 @@ public class Main extends Application {
     private Pane mainUI;
     public MainController controller;
     public NotificationBarPane notificationBar;
+    public Stage mainWindow;
 
     @Override
     public void start(Stage mainWindow) throws Exception {
@@ -50,6 +69,7 @@ public class Main extends Application {
     }
 
     private void realStart(Stage mainWindow) throws IOException {
+        this.mainWindow = mainWindow;
         instance = this;
         // Show the crash dialog for any exceptions that we don't handle and that hit the main loop.
         GuiUtils.handleCrashesOnThisThread();
@@ -96,20 +116,27 @@ public class Main extends Application {
 
         mainWindow.show();
 
+        WalletSetPasswordController.estimateKeyDerivationTimeMsec();
+
+        bitcoin.addListener(new Service.Listener() {
+            @Override
+            public void failed(Service.State from, Throwable failure) {
+                GuiUtils.crashAlert(failure);
+            }
+        }, Platform::runLater);
         bitcoin.startAsync();
+
+        scene.getAccelerators().put(KeyCombination.valueOf("Shortcut+F"), () -> bitcoin.peerGroup().getDownloadPeer().close());
     }
 
     public void setupWalletKit(@Nullable DeterministicSeed seed) {
         // If seed is non-null it means we are restoring from backup.
-        bitcoin = new WalletAppKit(params, new File("."), APP_NAME) {
+        bitcoin = new WalletAppKit(params, new File("."), WALLET_FILE_NAME) {
             @Override
             protected void onSetupCompleted() {
                 // Don't make the user wait for confirmations for now, as the intention is they're sending it
                 // their own money!
                 bitcoin.wallet().allowSpendingUnconfirmedTransactions();
-                if (params != RegTestParams.get())
-                    bitcoin.peerGroup().setMaxConnections(11);
-                bitcoin.peerGroup().setBloomFilterFalsePositiveRate(0.00001);
                 Platform.runLater(controller::onBitcoinSetup);
             }
         };
@@ -117,16 +144,6 @@ public class Main extends Application {
         // or progress widget to keep the user engaged whilst we initialise, but we don't.
         if (params == RegTestParams.get()) {
             bitcoin.connectToLocalHost();   // You should run a regtest mode bitcoind locally.
-        } else if (params == MainNetParams.get()) {
-            // Checkpoints are block headers that ship inside our app: for a new user, we pick the last header
-            // in the checkpoints file and then download the rest from the network. It makes things much faster.
-            // Checkpoint files are made using the BuildCheckpoints tool and usually we have to download the
-            // last months worth or more (takes a few seconds).
-            bitcoin.setCheckpoints(getClass().getResourceAsStream("checkpoints"));
-        } else if (params == TestNet3Params.get()) {
-            bitcoin.setCheckpoints(getClass().getResourceAsStream("checkpoints.testnet"));
-            // As an example!
-            bitcoin.useTor();
         }
         bitcoin.setDownloadListener(controller.progressBarUpdater())
                .setBlockingStartup(false)

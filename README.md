@@ -1,4 +1,6 @@
-Build status: [![Build Status](https://travis-ci.org/bitcoinj/bitcoinj.png?branch=master)](https://travis-ci.org/bitcoinj/bitcoinj)
+[![Build Status](https://travis-ci.org/bitcoinj/bitcoinj.png?branch=master)](https://travis-ci.org/bitcoinj/bitcoinj)   [![Coverage Status](https://coveralls.io/repos/bitcoinj/bitcoinj/badge.png?branch=master)](https://coveralls.io/r/bitcoinj/bitcoinj?branch=master) 
+
+[![Visit our IRC channel](https://kiwiirc.com/buttons/irc.freenode.net/bitcoinj.png)](https://kiwiirc.com/client/irc.freenode.net/bitcoinj)
 
 ### Welcome to bitcoinj
 
@@ -6,10 +8,9 @@ The bitcoinj library is a Java implementation of the Bitcoin protocol, which all
 
 ### Technologies
 
-* Java 6+
+* Java 6 for the core modules, Java 8 for everything else
 * [Maven 3+](http://maven.apache.org) - for building the project
-* [Orchid](https://github.com/subgraph/Orchid) - for secure communications over [TOR](https://www.torproject.org)
-* [Google Protocol Buffers](https://code.google.com/p/protobuf/) - for use with serialization and hardware communications
+* [Google Protocol Buffers](https://github.com/google/protobuf) - for use with serialization and hardware communications
 
 ### Getting started
 
@@ -45,7 +46,7 @@ If you send coins to that address, it will forward them on to the address you sp
 
 ```
   cd examples
-  mvn exec:java -Dexec.mainClass=com.google.bitcoin.examples.ForwardingService -Dexec.args="<insert a bitcoin address here>"
+  mvn exec:java -Dexec.mainClass=org.bitcoinj.examples.ForwardingService -Dexec.args="<insert a bitcoin address here>"
 ```
 
 Note that this example app *does not use checkpointing*, so the initial chain sync will be pretty slow. You can make an app that starts up and does the initial sync much faster by including a checkpoints file; see the documentation for

@@ -1,8 +1,24 @@
+/*
+ * Copyright by the original author or authors.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package wallettemplate;
 
-import com.google.bitcoin.crypto.MnemonicCode;
-import com.google.bitcoin.wallet.DeterministicSeed;
-import com.google.common.base.Joiner;
+import org.bitcoinj.core.Utils;
+import org.bitcoinj.crypto.MnemonicCode;
+import org.bitcoinj.wallet.DeterministicSeed;
 import com.google.common.base.Splitter;
 import com.google.common.util.concurrent.Service;
 import javafx.application.Platform;
@@ -68,7 +84,7 @@ public class WalletSettingsController {
         // Set the mnemonic seed words.
         final List<String> mnemonicCode = seed.getMnemonicCode();
         checkNotNull(mnemonicCode);    // Already checked for encryption.
-        String origWords = Joiner.on(" ").join(mnemonicCode);
+        String origWords = Utils.SPACE_JOINER.join(mnemonicCode);
         wordsArea.setText(origWords);
 
         // Validate words as they are being typed.

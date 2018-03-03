@@ -66,6 +66,10 @@ message DeterministicKey {
    * a single P2SH multisignature address
    */
   optional bool isFollowing = 5;
+
+  // Number of signatures required to spend. This field is needed only for married keychains to reconstruct KeyChain
+  // and represents the N value from N-of-M CHECKMULTISIG script. For regular single keychains it will always be 1.
+  optional uint32 sigsRequiredToSpend = 6 [default = 1];
 }
 
 /**
@@ -116,8 +120,8 @@ message Key {
   // User-provided label associated with the key.
   optional string label = 4;
 
-  // Timestamp stored as millis since epoch. Useful for skipping block bodies before this point. Only reason it's
-  // optional is that some very old wallets don't have this data.
+  // Timestamp stored as millis since epoch. Useful for skipping block bodies before this point. The reason it's
+  // optional is that keys derived from a parent don't have this data.
   optional int64 creation_timestamp = 5;
 
   optional DeterministicKey deterministic_key = 7;
@@ -128,6 +132,9 @@ message Key {
 
   // Encrypted version of the seed
   optional EncryptedData encrypted_deterministic_seed = 9;
+
+  // The path to the root. Only applicable to a DETERMINISTIC_MNEMONIC key entry.
+  repeated uint32 account_path = 10 [packed = true];
 }
 
 message Script {
@@ -145,7 +152,7 @@ message TransactionInput {
   required uint32 transaction_out_point_index = 2;
   // Script that contains the signatures/pubkeys.
   required bytes script_bytes = 3;
-  // Sequence number. Currently unused, but intended for contracts in future.
+  // Sequence number.
   optional uint32 sequence = 4;
   // Value of connected output, if known
   optional int64 value = 5;
@@ -168,11 +175,13 @@ message TransactionOutput {
  */
 message TransactionConfidence {
   enum Type {
+    // See TransactionConfidence.java for a more thorough explanation of these types.
     UNKNOWN = 0;
     BUILDING = 1; // In best chain.  If and only if appeared_at_height is present.
     PENDING = 2; // Unconfirmed and sitting in the networks memory pools, waiting to be included in the chain.
     NOT_IN_BEST_CHAIN = 3; // Deprecated: equivalent to PENDING.
-    DEAD = 4; // Either if overriding_transaction is present or transaction is dead coinbase
+    DEAD = 4; // Either if overriding_transaction is present or transaction is dead coinbase.
+    IN_CONFLICT = 5; // There is another transaction spending one of this transaction inputs.
   }
 
   // This is optional in case we add confidence types to prevent parse errors - backwards compatible.
@@ -195,6 +204,9 @@ message TransactionConfidence {
 
   repeated PeerAddress broadcast_by = 6;
 
+  // Millis since epoch the transaction was last announced to us.
+  optional int64 last_broadcasted_at = 8;
+
   // Where did we get this transaction from? Knowing the source may help us to risk analyze pending transactions.
   enum Source {
     SOURCE_UNKNOWN = 0;  // We don't know where it came from, or this is a wallet from the future.
@@ -206,6 +218,8 @@ message TransactionConfidence {
     // - from a wallet that uses trusted computing/secure hardware that won't create double spends
   }
   optional Source source = 7;
+
+  // Next tag: 9
 }
 
 /** A bitcoin transaction */
@@ -267,6 +281,8 @@ message Transaction {
     ASSURANCE_CONTRACT_CLAIM = 3;
     ASSURANCE_CONTRACT_PLEDGE = 4;
     ASSURANCE_CONTRACT_STUB = 5;
+    // Raise fee, e.g. child-pays-for-parent.
+    RAISE_FEE = 6;
     // In future: de/refragmentation, privacy boosting/mixing, child-pays-for-parent fees, etc.
   }
   optional Purpose purpose = 10 [default = UNKNOWN];
@@ -339,7 +355,7 @@ message Wallet {
   }
 
   required string network_identifier = 1; // the network used by this wallet
-  // org.bitcoin.production = production network (Satoshi genesis block)
+  // org.bitcoin.production = main, production network (Satoshi genesis block)
   // org.bitcoin.test = test network (Andresen genesis block)
 
   // The SHA256 hash of the head of the best chain seen by this wallet.
@@ -356,7 +372,8 @@ message Wallet {
   optional ScryptParameters encryption_parameters = 6;
 
   // The version number of the wallet - used to detect wallets that were produced in the future
-  // (i.e the wallet may contain some future format this protobuf/ code does not know about)
+  // (i.e. the wallet may contain some future format this protobuf or parser code does not know about).
+  // A version that's higher than the default is considered from the future.
   optional int32 version = 7 [default = 1];
 
   // deprecated - do not recycle this numeric identifier
@@ -379,11 +396,7 @@ message Wallet {
   // transaction signers added to the wallet
   repeated TransactionSigner transaction_signers = 17;
 
-  // Number of signatures required to spend. This field is needed only for married wallets to reconstruct KeyChainGroup
-  // and represents the N value from N-of-M CHECKMULTISIG script. For regular single wallets it will always be 1.
-  optional uint32 sigsRequiredToSpend = 18 [default = 1];
-
-  // Next tag: 19
+  // Next tag: 18
 }
 
 /** An exchange rate between Bitcoin and some fiat currency. */
